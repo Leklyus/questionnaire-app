@@ -24,6 +24,14 @@ from urllib.parse import urlparse
 HOST = "0.0.0.0"
 PORT = 8000
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.log")
+
+
+def log(msg: str) -> None:
+    """Пишет сообщение в stdout и в файл server.log (с flush)."""
+    print(msg, flush=True)
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(msg + "\n")
 
 # ---------------------------------------------------------------------------
 # In-memory база данных SQLite.
@@ -115,8 +123,8 @@ class QuestionnaireHandler(BaseHTTPRequestHandler):
         return data, None
 
     def log_message(self, format, *args):  # noqa: A002
-        """Компактное логирование запросов."""
-        print(
+        """Компактное логирование запросов (stdout + server.log)."""
+        log(
             f"[{self.log_date_time_string()}] {self.address_string()} "
             f"{format % args}"
         )
@@ -252,14 +260,14 @@ class QuestionnaireHandler(BaseHTTPRequestHandler):
 def main() -> None:
     init_db()
     server = ThreadingHTTPServer((HOST, PORT), QuestionnaireHandler)
-    print(f"Сервер запущен: http://{HOST}:{PORT}")
-    print("GET  /            — страница опросника (Vue)")
-    print("GET  /questions   — список вопросов")
-    print("POST /answers     — сохранение ответов")
+    log(f"Сервер запущен: http://localhost:{PORT}")
+    log("GET  /            — страница опросника (Vue)")
+    log("GET  /questions   — список вопросов")
+    log("POST /answers     — сохранение ответов")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nОстановка сервера...")
+        log("Остановка сервера...")
 
 
 if __name__ == "__main__":
