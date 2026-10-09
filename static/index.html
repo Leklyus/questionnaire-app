@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Опросник</title>
+    <link rel="icon" href="data:,">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                "Helvetica Neue", Arial, sans-serif;
+            background: #f4f6fb;
+            color: #1f2430;
+            line-height: 1.5;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 24px rgba(31, 36, 48, 0.08);
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .question {
+            margin-bottom: 1.25rem;
+        }
+
+        .question label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .question input[type="text"] {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .question input[type="text"]:focus {
+            outline: none;
+            border-color: #4f7cff;
+            box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.15);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            background: #4f7cff;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        button:hover:not(:disabled) {
+            background: #3b66e0;
+        }
+
+        button:disabled {
+            background: #aab4d0;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .message.success {
+            background: #e6f7ee;
+            color: #176b3d;
+            border: 1px solid #bfe8cf;
+        }
+
+        .message.error {
+            background: #fdecec;
+            color: #a13030;
+            border: 1px solid #f5c6c6;
+        }
+
+        .loading {
+            color: #6b7280;
+        }
+
+        .empty {
+            color: #6b7280;
+            text-align: center;
+            padding: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <h1>Опросник</h1>
+        <p class="subtitle">Ответьте, пожалуйста, на несколько вопросов</p>
+
+        <div v-if="loading" class="loading">Загружаем вопросы...</div>
+
+        <div v-else-if="errorLoading" class="message error">
+            Не удалось загрузить вопросы: {{ errorLoading }}
+        </div>
+
+        <form v-else-if="questions.length" @submit.prevent="submitAnswers">
+            <div v-for="question in questions" :key="question.id" class="question">
+                <label :for="'q' + question.id">{{ question.id }}. {{ question.text }}</label>
+                <input
+                    type="text"
+                    :id="'q' + question.id"
+                    v-model="answers[question.id]"
+                    :placeholder="'Ваш ответ на вопрос ' + question.id"
+                >
+            </div>
+
+            <button type="submit" :disabled="sending || !hasFilledAnswers">
+                {{ sending ? 'Отправляем...' : 'Отправить ответы' }}
+            </button>
+        </form>
+
+        <div v-else class="empty">Вопросов пока нет.</div>
+
+        <div v-if="message" class="message" :class="messageType">
+            {{ message }}
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    questions: [],
+                    answers: {}, // question_id -> текст ответа
+                    loading: true,
+                    sending: false,
+                    errorLoading: "",
+                    message: "",
+                    messageType: "success",
+                };
+            },
+
+            computed: {
+                hasFilledAnswers() {
+                    return this.questions.some((q) => {
+                        const value = this.answers[q.id];
+                        return typeof value === "string" && value.trim() !== "";
+                    });
+                },
+            },
+
+            async mounted() {
+                try {
+                    const response = await fetch("/questions");
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    const data = await response.json();
+                    this.questions = data.questions || [];
+                } catch (err) {
+                    this.errorLoading = err.message;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            methods: {
+                async submitAnswers() {
+                    const payload = Object.entries(this.answers)
+                        .map(([questionId, answer]) => ({
+                            question_id: Number(questionId),
+                            answer: String(answer).trim(),
+                        }))
+                        .filter((item) => item.answer !== "");
+
+                    if (!payload.length) {
+                        this.showMessage(
+                            "Заполните хотя бы один ответ.",
+                            "error"
+                        );
+                        return;
+                    }
+
+                    this.sending = true;
+                    this.message = "";
+                    try {
+                        const response = await fetch("/answers", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ answers: payload }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok) {
+                            throw new Error(
+                                data.error || "Ошибка при отправке ответов"
+                            );
+                        }
+                        this.showMessage(
+                            `Спасибо! Сохранено ответов: ${data.count}`,
+                            "success"
+                        );
+                        this.answers = {};
+                    } catch (err) {
+                        this.showMessage(err.message, "error");
+                    } finally {
+                        this.sending = false;
+                    }
+                },
+
+                showMessage(text, type) {
+                    this.message = text;
+                    this.messageType = type;
+                },
+            },
+        }).mount("#app");
+    </script>
+</body>
+</html>
