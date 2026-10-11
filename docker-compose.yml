@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    image: questionnaire-app:latest
+    container_name: questionnaire-app
+    ports:
+      - "8000:8000"
+    restart: no

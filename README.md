@@ -1,9 +1,17 @@
+ # Запуск в контейнере с помощью docker-compose:
+***docker compose up -d***
+
+Чтобы остановить и удалить контейнеры:\
+***docker compose down***
+
+После запуска опросник будет доступен по адресу http://localhost:8000
 # Запуск в контейнере:
 Сборка и запуск:\
-***docker build -t questionnaire-app . && docker run --rm -p 8000:8000 questionnaire-app***\
+***docker build -t questionnaire-app . && docker run --rm -p 8000:8000 questionnaire-app***
+
 Только запуск:\
- ***docker run --rm -p 8000:8000 questionnaire-app***\
- \
+ ***docker run --rm -p 8000:8000 questionnaire-app***
+ 
 После запуска опросник будет доступен по адресу http://localhost:8000
 
 # Запуск проекта локально без контейнера: 
